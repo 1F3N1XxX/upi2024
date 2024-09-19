@@ -1,42 +1,35 @@
-from api import search_vk_posts
 import vk_api as vkpi
-from apikey import key
-import numpy as np
-import time
+from api_key import vk_key, yan_key
+import datetime
+from yandex_geocoder import Client
 
-sigmund = 100  # amount of posts to read per use
-
-id = 687
-from_id = '-225405295'
-
-keywords = ['space']  # из тгбота
-
-print(f'https://vk.com/wall{from_id}_{id}')
+sigmund = 10
 
 
-def search_vk_posts(token, query, count=sigmund):
+def address_to_coordinate(a):
+    client = Client(yan_key)
+    coordinates = client.coordinates(a)
+    return (coordinates)
+
+
+def unix_to_date(unix_timestamp):
+    date_obj = datetime.datetime.fromtimestamp(unix_timestamp)
+    date_formatted = date_obj.strftime('%d:%m:%y')
+    return date_formatted
+
+
+def search_vk_posts(token, query, address, count=sigmund):
     vk_session = vkpi.VkApi(token=token)
     vk = vk_session.get_api()
-    posts = vk.newsfeed.search(q=query, count=count)
-    return [{'text': post['text'], 'date': post['date']} for post in posts]
-
-
-def get_vk_posts(token, owner_id, count=sigmund):
-    vk_session = vkpi.VkApi(token=token)
-    vk = vk_session.get_api()
-    posts = vk.wall.get(owner_id=owner_id, count=count)['items']
-    return [{'text': post['text'], 'date': post['date']} for post in posts]
-
-
-def filter_posts_by_keywords(posts, keywords):
-    filtered_posts = []
-    for post in posts:
-        if any(keyword.lower() in post['text'].lower() for keyword in keywords):
-            filtered_posts.append(post)
-    return filtered_posts
-
-
-for i in range(0, len(filter_posts_by_keywords(get_vk_posts(key, id), keywords))):
-    print(filter_posts_by_keywords(get_vk_posts(key, id), keywords)[i]['text'])
-    print(time.gmtime(filter_posts_by_keywords(get_vk_posts(key, id), keywords)[i]['date']))
-    print("__________________________________________________________________")
+    if address != "":
+        coordinate = address_to_coordinate(address)
+        posts = vk.newsfeed.search(q=query, count=count, latitude=coordinate[1], longitude=coordinate[0])['items']
+        print(f'latitude = {coordinate[1]}, longitude = {coordinate[0]}')
+    else:
+        posts = vk.newsfeed.search(q=query, count=count)['items']
+    return [[post['date'], post['text'], f'https://vk.com/wall{int(post["from_id"])}_{post["id"]}'] for post in
+            posts
+            if 'промокод' not in post['text'].lower() and 'скидк' not in post['text'].lower() and 'акци' not in post[
+                'text'].lower()
+            and 'промо' not in post['text'].lower() and 'продам' not in post['text'].lower() and 'продаж' not in post[
+                'text'].lower() and 'магазин' not in post['text'].lower()]
